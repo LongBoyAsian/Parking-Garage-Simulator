@@ -1,0 +1,2 @@
+# Parking-Garage-Simulator
+Take a foundational object-oriented concept like a parking lot system and elevate it into a full-scale application. You can implement complex data structures to track vehicle locations, write logic to calculate dynamic pricing based on time, and build a graphical user interface (GUI) to visualize the available spots in real-time.
