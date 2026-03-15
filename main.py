@@ -161,11 +161,11 @@ class GarageGUI:
                 else:  # Rightmost column (grid_column == 5), aisle on left
                     btn.pack(padx=(0, border_thickness), pady=border_thickness)
 
-            exit_aisle_text = "E\nX\nI\nT\n\n⬇"
+            exit_aisle_text = "EXIT\n\n⬇"
             aisle1 = tk.Label(spot_grid_frame, text=exit_aisle_text, bg=self.DARK_BG, fg="white", font=("Helvetica", 12, "bold"), width=10)
             aisle1.grid(row=0, column=1, rowspan=spots_per_column, sticky="ns", padx=20)
 
-            enter_aisle_text = "⬆\n\nE\nN\nT\nE\nR"
+            enter_aisle_text = "⬆\n\nENTER"
             aisle2 = tk.Label(spot_grid_frame, text=enter_aisle_text, bg=self.DARK_BG, fg="white", font=("Helvetica", 12, "bold"), width=10)
             aisle2.grid(row=0, column=4, rowspan=spots_per_column, sticky="ns", padx=20)
 
