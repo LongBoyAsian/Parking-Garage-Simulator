@@ -35,6 +35,7 @@ class ParkingGarage:
         self.available_spots = set(range(1, num_spots + 1))
         self.active_plates = set()
         self.base_rate = 5.0 # Base price per hour
+        self.total_revenue = 0.0
 
     def get_available_spots(self):
         return sorted(list(self.available_spots))
@@ -79,6 +80,7 @@ class ParkingGarage:
             self.available_spots.add(spot_id)
             self.active_plates.remove(vehicle.license_plate)
             cost = self.calculate_price(vehicle.entry_time)
+            self.total_revenue += cost
             return vehicle.license_plate, cost
         return None, 0
 
@@ -88,61 +90,115 @@ class GarageGUI:
         self.root = root
         self.garage = garage
         self.root.title("Parking Garage Simulator")
+        self.DARK_BG = "darkgray"
+        self.root.configure(bg=self.DARK_BG)
+
+        # Style for ttk widgets for a dark theme
+        style = ttk.Style(self.root)
+        style.theme_use('clam')
+        style.configure("TNotebook", background=self.DARK_BG, borderwidth=0)
+        style.configure("TNotebook.Tab", background="#555555", foreground="white", borderwidth=0)
+        style.map("TNotebook.Tab", background=[("selected", self.DARK_BG)], foreground=[("selected", "yellow")])
         
         self.buttons = {}
         self.create_widgets()
+        # Start the periodic update loop for real-time costs
+        self.update_costs_periodically()
 
     def create_widgets(self):
         # Notebook for parking levels
         self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(pady=20, padx=20, expand=True, fill="both")
-
+        self.notebook.pack(pady=10, padx=10, expand=True, fill="both")
         spots = list(self.garage.spots.keys())
-        spots_per_level = len(spots) // 5 if len(spots) >= 5 else len(spots)
-        
+        spots_per_level = 40
+        spots_per_column = 10
+
         for level in range(1, 6):
-            frame = tk.Frame(self.notebook)
-            self.notebook.add(frame, text=f"Level {level}")
-            
-            # Get the spots for this specific level
+            level_frame = tk.Frame(self.notebook, bg=self.DARK_BG)
+            self.notebook.add(level_frame, text=f"Level {level}")
+
+            spot_grid_frame = tk.Frame(level_frame, bg=self.DARK_BG)
+            spot_grid_frame.pack(expand=True)
+
             start_idx = (level - 1) * spots_per_level
             end_idx = start_idx + spots_per_level
             level_spots = spots[start_idx:end_idx]
-            
-            half = len(level_spots) // 2 + len(level_spots) % 2
-            
+
             for i, spot_id in enumerate(level_spots):
-                if i < half:
-                    row, col = i, 0
-                else:
-                    row, col = i - half, 2
-                    
-                btn = tk.Button(frame, text=f"Spot {spot_id}\n[Empty]", 
-                                width=15, height=3, bg="lightgreen",
-                                command=lambda s=spot_id: self.handle_spot_click(s))
-                btn.grid(row=row, column=col, padx=5, pady=5)
-                self.buttons[spot_id] = btn
+                column_index = i // spots_per_column
+                row = i % spots_per_column
+
+                if column_index == 0: grid_column = 0
+                elif column_index == 1: grid_column = 2
+                elif column_index == 2: grid_column = 3
+                else: grid_column = 5
+
+                # Create a frame to act as the custom border
+                border_frame = tk.Frame(spot_grid_frame, bg='white')
                 
-            # Create the driving aisle (vertical)
-            aisle_text = "↑\n\nA\nI\nS\nL\nE\n\n↓"
-            aisle = tk.Label(frame, text=aisle_text, bg="darkgray", fg="white", font=("Helvetica", 12, "bold"), width=10)
-            aisle.grid(row=0, column=1, rowspan=max(1, half), sticky="ns", padx=20)
+                # Adjust padding to close the gap between the middle two columns
+                if grid_column == 2:
+                    border_frame.grid(row=row, column=grid_column, padx=(5, 0), pady=2)
+                elif grid_column == 3:
+                    border_frame.grid(row=row, column=grid_column, padx=(0, 5), pady=2)
+                else:
+                    border_frame.grid(row=row, column=grid_column, padx=5, pady=2)
+
+                btn = tk.Button(border_frame, text=f"Spot {spot_id}\n[Empty]",
+                                width=18, height=4, bg="lightgreen",
+                                command=lambda s=spot_id: self.handle_spot_click(s),
+                                relief='flat', borderwidth=0, highlightthickness=0)
+                self.buttons[spot_id] = btn
+
+                # Apply padding inside the frame to create the 3-sided border effect
+                border_thickness = 4
+                if grid_column == 0:  # Leftmost column, aisle on right
+                    btn.pack(padx=(border_thickness, 0), pady=border_thickness)
+                elif grid_column == 2: # Middle-left column, touching middle
+                    btn.pack(padx=(0, border_thickness // 2), pady=border_thickness)
+                elif grid_column == 3: # Middle-right column, touching middle
+                    btn.pack(padx=(border_thickness // 2, 0), pady=border_thickness)
+                else:  # Rightmost column (grid_column == 5), aisle on left
+                    btn.pack(padx=(0, border_thickness), pady=border_thickness)
+
+            exit_aisle_text = "E\nX\nI\nT\n\n⬇"
+            aisle1 = tk.Label(spot_grid_frame, text=exit_aisle_text, bg=self.DARK_BG, fg="white", font=("Helvetica", 12, "bold"), width=10)
+            aisle1.grid(row=0, column=1, rowspan=spots_per_column, sticky="ns", padx=20)
+
+            enter_aisle_text = "⬆\n\nE\nN\nT\nE\nR"
+            aisle2 = tk.Label(spot_grid_frame, text=enter_aisle_text, bg=self.DARK_BG, fg="white", font=("Helvetica", 12, "bold"), width=10)
+            aisle2.grid(row=0, column=4, rowspan=spots_per_column, sticky="ns", padx=20)
 
         # Control Panel
-        self.control_frame = tk.Frame(self.root)
+        self.control_frame = tk.Frame(self.root, bg=self.DARK_BG)
         self.control_frame.pack(pady=10)
 
         self.park_btn = tk.Button(self.control_frame, text="Park New Vehicle", command=self.park_vehicle, bg="lightblue")
         self.park_btn.pack(side=tk.LEFT, padx=10)
 
+        self.revenue_label = tk.Label(self.control_frame, text="Total Revenue: $0.00", font=("Helvetica", 12, "bold"), bg=self.DARK_BG, fg="white")
+        self.revenue_label.pack(side=tk.LEFT, padx=20)
+
     def update_ui(self):
         """Refresh the colors and text of the spots based on real-time data."""
         for spot_id, spot in self.garage.spots.items():
+            button = self.buttons[spot_id]
             if spot.is_available():
-                self.buttons[spot_id].config(text=f"Spot {spot_id}\n[Empty]", bg="lightgreen")
+                button.config(text=f"Spot {spot_id}\n[Empty]", bg="lightgreen")
             else:
-                self.buttons[spot_id].config(text=f"Spot {spot_id}\n[{spot.vehicle.license_plate}]", bg="salmon")
+                # Set initial text and color. The cost will be added by the periodic update.
+                button.config(text=f"Spot {spot_id}\n[{spot.vehicle.license_plate}]", bg="salmon")
 
+    def update_costs_periodically(self):
+        """Periodically updates the cost display for all parked vehicles."""
+        for spot_id, spot in self.garage.spots.items():
+            if not spot.is_available():
+                current_cost = self.garage.calculate_price(spot.vehicle.entry_time)
+                self.buttons[spot_id].config(
+                    text=f"Spot {spot_id}\n[{spot.vehicle.license_plate}]\n${current_cost:.2f}"
+                )
+        # Schedule the next update in 1000ms (1 second)
+        self.root.after(1000, self.update_costs_periodically)
     def park_vehicle(self):
         plate = simpledialog.askstring("Input", "Enter License Plate:", parent=self.root)
         if plate:
@@ -158,6 +214,11 @@ class GarageGUI:
             elif spot_id is not None:
                 messagebox.showinfo("Success", f"Vehicle parked at Spot {spot_id}")
                 self.update_ui()
+                
+                # Switch to the level where the car was parked
+                spots_per_level = 40
+                level_index = (spot_id - 1) // spots_per_level
+                self.notebook.select(level_index)
             else:
                 messagebox.showwarning("Full", "The parking garage is currently full!")
 
@@ -165,16 +226,19 @@ class GarageGUI:
         """Handles clicking a specific spot to checkout the vehicle."""
         spot = self.garage.spots[spot_id]
         if not spot.is_available():
-            if messagebox.askyesno("Checkout", f"Checkout vehicle {spot.vehicle.license_plate} from Spot {spot_id}?"):
+            # Calculate final cost for the confirmation dialog
+            final_cost = self.garage.calculate_price(spot.vehicle.entry_time)
+            if messagebox.askyesno("Checkout", f"Checkout vehicle {spot.vehicle.license_plate} from Spot {spot_id}?\n\nCurrent Cost: ${final_cost:.2f}"):
                 plate, cost = self.garage.checkout_vehicle(spot_id)
                 messagebox.showinfo("Receipt", f"Vehicle {plate} checked out.\nTotal Cost: ${cost:.2f}")
+                self.revenue_label.config(text=f"Total Revenue: ${self.garage.total_revenue:.2f}")
                 self.update_ui()
         else:
             messagebox.showinfo("Info", "This spot is empty. Use 'Park New Vehicle' to assign a car here.")
 
 if __name__ == "__main__":
     root = tk.Tk()
-    # Initialize a garage with 50 spots (10 per level)
-    garage_system = ParkingGarage(50)
+    # Initialize a garage with 200 spots (5 levels * 40 spots/level)
+    garage_system = ParkingGarage(200)
     app = GarageGUI(root, garage_system)
     root.mainloop()
