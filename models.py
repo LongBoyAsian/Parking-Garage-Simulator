@@ -2,34 +2,29 @@ import time
 
 class Vehicle:
     """Base class for a vehicle. Should not be instantiated directly."""
+    rate_multiplier = 1.0
+    type = "Vehicle"
+
     def __init__(self, license_plate):
         if type(self) is Vehicle:
             raise NotImplementedError("Vehicle is an abstract class and cannot be instantiated directly")
         self.license_plate = license_plate
         self.entry_time = time.time()
-        self.rate_multiplier = 1.0
-        self.type = "Vehicle"
 
 class Car(Vehicle):
     """Represents a car with a standard rate."""
-    def __init__(self, license_plate):
-        super().__init__(license_plate)
-        self.rate_multiplier = 1.0
-        self.type = "Car"
+    rate_multiplier = 1.0
+    type = "Car"
 
 class Motorcycle(Vehicle):
     """Represents a motorcycle with a discounted rate."""
-    def __init__(self, license_plate):
-        super().__init__(license_plate)
-        self.rate_multiplier = 0.75
-        self.type = "Motorcycle"
+    rate_multiplier = 0.75
+    type = "Motorcycle"
 
 class Truck(Vehicle):
     """Represents a truck with a premium rate."""
-    def __init__(self, license_plate):
-        super().__init__(license_plate)
-        self.rate_multiplier = 1.5
-        self.type = "Truck"
+    rate_multiplier = 1.5
+    type = "Truck"
 
 class ParkingSpot:
     """Represents a single parking spot."""
@@ -83,13 +78,12 @@ class ParkingGarage:
     def calculate_price(self, vehicle):
         """
         Calculates price based on time spent. 
-        Uses the vehicle's specific rate multiplier.
-        Time is sped up for simulation (1 real second = 100 simulated seconds).
+        Uses the vehicle's specific rate multiplier and real-world time.
         Also implements dynamic 'surge' pricing based on capacity.
         """
         elapsed_seconds = time.time() - vehicle.entry_time
-        simulated_hours = (elapsed_seconds * 100) / 3600  
-        hours_charged = max(1.0, round(simulated_hours, 2)) # Charge at least 1 hour
+        elapsed_hours = elapsed_seconds / 3600
+        hours_charged = max(1.0, round(elapsed_hours, 2)) # Charge at least 1 hour
         
         # Dynamic multiplier: surge pricing if garage is heavily occupied
         available_spots = len(self.available_spots)
