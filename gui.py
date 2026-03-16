@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import simpledialog, messagebox, ttk
 import re
+import time
+
+from models import Car, Motorcycle, Truck
 
 class VehicleInputDialog(simpledialog.Dialog):
     """Custom dialog to get vehicle license plate and type."""
@@ -106,9 +109,13 @@ class GarageGUI:
             aisle2 = tk.Label(spot_grid_frame, text=enter_aisle_text, bg=self.DARK_BG, fg="white", font=("Helvetica", 12, "bold"), width=10)
             aisle2.grid(row=0, column=4, rowspan=spots_per_column, sticky="ns", padx=20)
 
+        # --- Bottom Panel ---
+        bottom_frame = tk.Frame(self.root, bg=self.DARK_BG)
+        bottom_frame.pack(pady=10, padx=10, fill="x", side=tk.BOTTOM)
+
         # Control Panel
-        self.control_frame = tk.Frame(self.root, bg=self.DARK_BG)
-        self.control_frame.pack(pady=10)
+        self.control_frame = tk.Frame(bottom_frame, bg=self.DARK_BG)
+        self.control_frame.pack(side=tk.LEFT, padx=10, anchor="w")
 
         self.park_btn = tk.Button(self.control_frame, text="Park New Vehicle", command=self.park_vehicle, bg="lightblue")
         self.park_btn.pack(side=tk.LEFT, padx=10)
@@ -118,6 +125,46 @@ class GarageGUI:
 
         self.occupancy_label = tk.Label(self.control_frame, text="", font=("Helvetica", 12, "bold"), bg=self.DARK_BG, fg="white")
         self.occupancy_label.pack(side=tk.LEFT, padx=(5, 20))
+
+        # --- Info Panel (Timer and Pricing) ---
+        info_frame = tk.Frame(bottom_frame, bg=self.DARK_BG)
+        info_frame.pack(side=tk.RIGHT, padx=20, anchor="e")
+
+        self.timer_label = tk.Label(info_frame, text="Current Time: ", font=("Courier", 12), bg=self.DARK_BG, fg="white")
+        self.timer_label.pack(anchor="w")
+
+        pricing_frame = tk.LabelFrame(info_frame, text="Pricing Information", bg=self.DARK_BG, fg="white", font=("Helvetica", 10, "bold"))
+        pricing_frame.pack(pady=5, fill="x")
+
+        # Base Rate
+        base_rate_frame = tk.Frame(pricing_frame, bg=self.DARK_BG)
+        base_rate_frame.pack(anchor="w", padx=5)
+        tk.Label(base_rate_frame, text="Base Rate:", font=("Helvetica", 10, "bold"), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
+        tk.Label(base_rate_frame, text=f" ${self.garage.base_rate:.2f} / hour", font=("Helvetica", 10), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
+
+        # Motorcycle
+        motorcycle_frame = tk.Frame(pricing_frame, bg=self.DARK_BG)
+        motorcycle_frame.pack(anchor="w", padx=5)
+        tk.Label(motorcycle_frame, text="Motorcycle:", font=("Helvetica", 10, "bold"), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
+        tk.Label(motorcycle_frame, text=f" ${self.garage.base_rate * Motorcycle.rate_multiplier:.2f} / hr ({Motorcycle.rate_multiplier}x)", font=("Helvetica", 10), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
+
+        # Car
+        car_frame = tk.Frame(pricing_frame, bg=self.DARK_BG)
+        car_frame.pack(anchor="w", padx=5)
+        tk.Label(car_frame, text="Car:", font=("Helvetica", 10, "bold"), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
+        tk.Label(car_frame, text=f" ${self.garage.base_rate * Car.rate_multiplier:.2f} / hr ({Car.rate_multiplier}x)", font=("Helvetica", 10), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
+
+        # Truck
+        truck_frame = tk.Frame(pricing_frame, bg=self.DARK_BG)
+        truck_frame.pack(anchor="w", padx=5)
+        tk.Label(truck_frame, text="Truck:", font=("Helvetica", 10, "bold"), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
+        tk.Label(truck_frame, text=f" ${self.garage.base_rate * Truck.rate_multiplier:.2f} / hr ({Truck.rate_multiplier}x)", font=("Helvetica", 10), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
+
+        # Surge
+        surge_frame = tk.Frame(pricing_frame, bg=self.DARK_BG)
+        surge_frame.pack(anchor="w", padx=5)
+        tk.Label(surge_frame, text="Surge (>=80%):", font=("Helvetica", 10, "bold"), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
+        tk.Label(surge_frame, text=" 1.5x", font=("Helvetica", 10), bg=self.DARK_BG, fg="white").pack(side=tk.LEFT)
 
         self.update_status_bar()
 
@@ -141,13 +188,17 @@ class GarageGUI:
                 button.config(text=f"Spot {spot_id}\n[{spot.vehicle.license_plate}]\n({spot.vehicle.type})", bg="salmon")
 
     def update_costs_periodically(self):
-        """Periodically updates the cost display for all parked vehicles."""
+        """Periodically updates the cost display and simulated timer."""
         for spot_id, spot in self.garage.spots.items():
             if not spot.is_available():
                 current_cost = self.garage.calculate_price(spot.vehicle)
                 self.buttons[spot_id].config(
                     text=f"Spot {spot_id}\n[{spot.vehicle.license_plate}]\n({spot.vehicle.type}) ${current_cost:.2f}"
                 )
+
+        # Update real-time clock
+        current_time_str = time.strftime("%I:%M:%S %p") # e.g., 02:30:55 PM
+        self.timer_label.config(text=f"Current Time: {current_time_str}")
         # Schedule the next update in 1000ms (1 second)
         self.root.after(1000, self.update_costs_periodically)
     def park_vehicle(self):
